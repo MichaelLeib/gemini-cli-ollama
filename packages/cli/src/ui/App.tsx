@@ -34,6 +34,7 @@ import { InputPrompt } from './components/InputPrompt.js';
 import { Footer } from './components/Footer.js';
 import { ThemeDialog } from './components/ThemeDialog.js';
 import { AuthDialog } from './components/AuthDialog.js';
+import { OllamaConfigDialog } from './components/OllamaConfigDialog.js';
 import { AuthInProgress } from './components/AuthInProgress.js';
 import { EditorSettingsDialog } from './components/EditorSettingsDialog.js';
 import { Colors } from './colors.js';
@@ -192,6 +193,9 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
     handleAuthSelect,
     isAuthenticating,
     cancelAuthentication,
+    isOllamaConfigDialogOpen,
+    handleOllamaConfigComplete,
+    handleOllamaConfigCancel,
   } = useAuthCommand(settings, setAuthError, config);
 
   useEffect(() => {
@@ -825,6 +829,14 @@ const App = ({ config, settings, startupWarnings = [], version }: AppProps) => {
                 onSelect={handleAuthSelect}
                 settings={settings}
                 initialErrorMessage={authError}
+              />
+            </Box>
+          ) : isOllamaConfigDialogOpen ? (
+            <Box flexDirection="column">
+              <OllamaConfigDialog
+                onComplete={handleOllamaConfigComplete}
+                onCancel={handleOllamaConfigCancel}
+                initialConfig={config.getOllamaConfig()}
               />
             </Box>
           ) : isEditorDialogOpen ? (

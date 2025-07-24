@@ -15,6 +15,7 @@ import {
   BugCommandSettings,
   TelemetrySettings,
   AuthType,
+  OllamaConfig,
 } from '@google/gemini-cli-core';
 import stripJsonComments from 'strip-json-comments';
 import { DefaultLight } from '../ui/themes/default-light.js';
@@ -78,6 +79,7 @@ export interface Settings {
   bugCommand?: BugCommandSettings;
   checkpointing?: CheckpointingSettings;
   autoConfigureMaxOldSpaceSize?: boolean;
+  ollama?: OllamaConfig;
 
   // Git-aware file filtering settings
   fileFiltering?: {
@@ -142,7 +144,14 @@ export class LoadedSettings {
     const user = this.user.settings;
     const workspace = this.workspace.settings;
 
-    return {
+    // Merge ollama configuration, only include if there's actual content
+    const mergedOllama = {
+      ...(user.ollama || {}),
+      ...(workspace.ollama || {}),
+      ...(system.ollama || {}),
+    };
+    
+    const result: Settings = {
       ...user,
       ...workspace,
       ...system,
@@ -157,6 +166,13 @@ export class LoadedSettings {
         ...(system.mcpServers || {}),
       },
     };
+
+    // Only add ollama if it has content
+    if (Object.keys(mergedOllama).length > 0) {
+      result.ollama = mergedOllama as OllamaConfig;
+    }
+
+    return result;
   }
 
   forScope(scope: SettingScope): SettingsFile {

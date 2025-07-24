@@ -12,17 +12,20 @@ export async function validateNonInteractiveAuth(
   configuredAuthType: AuthType | undefined,
   nonInteractiveConfig: Config,
 ) {
-  const effectiveAuthType =
-    configuredAuthType ||
-    (process.env.GOOGLE_GENAI_USE_VERTEXAI === 'true'
-      ? AuthType.USE_VERTEX_AI
-      : process.env.GEMINI_API_KEY
-        ? AuthType.USE_GEMINI
-        : undefined);
+  // COMMENTED OUT: Only allow Ollama in non-interactive mode
+  // const effectiveAuthType =
+  //   configuredAuthType ||
+  //   (process.env.GOOGLE_GENAI_USE_VERTEXAI === 'true'
+  //     ? AuthType.USE_VERTEX_AI
+  //     : process.env.GEMINI_API_KEY
+  //       ? AuthType.USE_GEMINI
+  //       : undefined);
 
-  if (!effectiveAuthType) {
+  const effectiveAuthType = configuredAuthType;
+
+  if (!effectiveAuthType || effectiveAuthType !== AuthType.USE_OLLAMA) {
     console.error(
-      `Please set an Auth method in your ${USER_SETTINGS_PATH} or specify either the GEMINI_API_KEY or GOOGLE_GENAI_USE_VERTEXAI environment variables before running`,
+      `Only Ollama authentication is supported. Please configure Ollama in your ${USER_SETTINGS_PATH}`,
     );
     process.exit(1);
   }
@@ -33,6 +36,7 @@ export async function validateNonInteractiveAuth(
     process.exit(1);
   }
 
+  // Initialize auth for Ollama
   await nonInteractiveConfig.refreshAuth(effectiveAuthType);
   return nonInteractiveConfig;
 }

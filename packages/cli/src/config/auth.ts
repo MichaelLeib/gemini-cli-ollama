@@ -9,34 +9,27 @@ import { loadEnvironment } from './settings.js';
 
 export const validateAuthMethod = (authMethod: string): string | null => {
   loadEnvironment();
-  if (
-    authMethod === AuthType.LOGIN_WITH_GOOGLE ||
-    authMethod === AuthType.CLOUD_SHELL
-  ) {
+  
+  // COMMENTED OUT: Only allow Ollama authentication
+  // if (
+  //   authMethod === AuthType.LOGIN_WITH_GOOGLE ||
+  //   authMethod === AuthType.CLOUD_SHELL
+  // ) {
+  //   return 'Google authentication temporarily disabled - only Ollama is supported';
+  // }
+
+  // if (authMethod === AuthType.USE_GEMINI) {
+  //   return 'Gemini API authentication temporarily disabled - only Ollama is supported';
+  // }
+
+  // if (authMethod === AuthType.USE_VERTEX_AI) {
+  //   return 'Vertex AI authentication temporarily disabled - only Ollama is supported';
+  // }
+
+  if (authMethod === AuthType.USE_OLLAMA) {
+    // Ollama doesn't require environment variables, configuration is handled through the UI
     return null;
   }
 
-  if (authMethod === AuthType.USE_GEMINI) {
-    if (!process.env.GEMINI_API_KEY) {
-      return 'GEMINI_API_KEY environment variable not found. Add that to your environment and try again (no reload needed if using .env)!';
-    }
-    return null;
-  }
-
-  if (authMethod === AuthType.USE_VERTEX_AI) {
-    const hasVertexProjectLocationConfig =
-      !!process.env.GOOGLE_CLOUD_PROJECT && !!process.env.GOOGLE_CLOUD_LOCATION;
-    const hasGoogleApiKey = !!process.env.GOOGLE_API_KEY;
-    if (!hasVertexProjectLocationConfig && !hasGoogleApiKey) {
-      return (
-        'When using Vertex AI, you must specify either:\n' +
-        '• GOOGLE_CLOUD_PROJECT and GOOGLE_CLOUD_LOCATION environment variables.\n' +
-        '• GOOGLE_API_KEY environment variable (if using express mode).\n' +
-        'Update your environment and try again (no reload needed if using .env)!'
-      );
-    }
-    return null;
-  }
-
-  return 'Invalid auth method selected.';
+  return 'Only Ollama authentication is currently supported.';
 };

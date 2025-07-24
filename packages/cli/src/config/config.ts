@@ -450,6 +450,7 @@ export async function loadCliConfig(
     noBrowser: !!process.env.NO_BROWSER,
     summarizeToolOutput: settings.summarizeToolOutput,
     ideMode,
+    ollamaConfig: settings.ollama,
   });
 }
 

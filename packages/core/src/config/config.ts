@@ -45,9 +45,12 @@ import {
 import { ClearcutLogger } from '../telemetry/clearcut-logger/clearcut-logger.js';
 import { shouldAttemptBrowserLaunch } from '../utils/browser.js';
 import { MCPOAuthConfig } from '../mcp/oauth-provider.js';
+import { OllamaConfig, mergeOllamaConfig } from './ollamaConfig.js';
 
 // Re-export OAuth config type
 export type { MCPOAuthConfig };
+// Re-export Ollama config type
+export type { OllamaConfig };
 
 export enum ApprovalMode {
   DEFAULT = 'default',
@@ -174,6 +177,7 @@ export interface ConfigParameters {
   noBrowser?: boolean;
   summarizeToolOutput?: Record<string, SummarizeToolOutputSettings>;
   ideMode?: boolean;
+  ollamaConfig?: OllamaConfig;
 }
 
 export class Config {
@@ -229,6 +233,7 @@ export class Config {
     | Record<string, SummarizeToolOutputSettings>
     | undefined;
   private readonly experimentalAcp: boolean = false;
+  private readonly ollamaConfig: OllamaConfig;
 
   constructor(params: ConfigParameters) {
     this.sessionId = params.sessionId;
@@ -280,6 +285,7 @@ export class Config {
     this.noBrowser = params.noBrowser ?? false;
     this.summarizeToolOutput = params.summarizeToolOutput;
     this.ideMode = params.ideMode ?? false;
+    this.ollamaConfig = mergeOllamaConfig(params.ollamaConfig);
 
     if (params.contextFileName) {
       setGeminiMdFilename(params.contextFileName);
@@ -313,6 +319,8 @@ export class Config {
       authMethod,
     );
 
+    // Initialize Gemini client for all auth methods (including Ollama)
+    // The client will use the appropriate content generator based on authMethod
     this.geminiClient = new GeminiClient(this);
     await this.geminiClient.initialize(this.contentGeneratorConfig);
 
@@ -566,6 +574,16 @@ export class Config {
 
   getIdeMode(): boolean {
     return this.ideMode;
+  }
+
+  getOllamaConfig(): OllamaConfig {
+    return this.ollamaConfig;
+  }
+
+  setOllamaConfig(config: OllamaConfig): void {
+    // Create a new merged config to maintain immutability
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (this as any).ollamaConfig = mergeOllamaConfig(config);
   }
 
   async getGitService(): Promise<GitService> {

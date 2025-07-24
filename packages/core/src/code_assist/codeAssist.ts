@@ -16,6 +16,11 @@ export async function createCodeAssistContentGenerator(
   config: Config,
   sessionId?: string,
 ): Promise<ContentGenerator> {
+  // Defensive check: refuse to run CodeAssist for Ollama  
+  if (authType === AuthType.USE_OLLAMA) {
+    throw new Error('CodeAssist content generator should not be called for Ollama. This indicates a bug in the content generator factory.');
+  }
+  
   if (
     authType === AuthType.LOGIN_WITH_GOOGLE ||
     authType === AuthType.CLOUD_SHELL

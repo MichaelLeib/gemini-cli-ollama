@@ -67,6 +67,10 @@ describe('validateAuthMethod', () => {
     });
   });
 
+  it('should return null for USE_OLLAMA', () => {
+    expect(validateAuthMethod(AuthType.USE_OLLAMA)).toBeNull();
+  });
+
   it('should return an error message for an invalid auth method', () => {
     expect(validateAuthMethod('invalid-method')).toBe(
       'Invalid auth method selected.',

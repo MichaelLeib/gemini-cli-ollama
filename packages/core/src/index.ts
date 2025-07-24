@@ -6,6 +6,8 @@
 
 // Export config
 export * from './config/config.js';
+export * from './config/ollamaConfig.js';
+export * from './config/ollamaValidation.js';
 
 // Export Core Logic
 export * from './core/client.js';
@@ -18,6 +20,11 @@ export * from './core/turn.js';
 export * from './core/geminiRequest.js';
 export * from './core/coreToolScheduler.js';
 export * from './core/nonInteractiveToolExecutor.js';
+
+// Export Ollama Logic
+export * from './ollama/ollamaClient.js';
+export * from './ollama/ollamaConverter.js';
+export * from './ollama/ollamaContentGenerator.js';
 
 export * from './code_assist/codeAssist.js';
 export * from './code_assist/oauth2.js';

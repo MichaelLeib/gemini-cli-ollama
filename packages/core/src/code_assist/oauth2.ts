@@ -14,7 +14,7 @@ import * as http from 'http';
 import url from 'url';
 import crypto from 'crypto';
 import * as net from 'net';
-import open from 'open';
+// import open from 'open'; // COMMENTED OUT: Browser launch disabled
 import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import * as os from 'os';
@@ -70,6 +70,11 @@ export async function getOauthClient(
   authType: AuthType,
   config: Config,
 ): Promise<OAuth2Client> {
+  // Defensive check: refuse to run OAuth for Ollama
+  if (authType === AuthType.USE_OLLAMA) {
+    throw new Error('OAuth authentication should not be called for Ollama. This indicates a bug in the authentication flow.');
+  }
+  
   const client = new OAuth2Client({
     clientId: OAUTH_CLIENT_ID,
     clientSecret: OAUTH_CLIENT_SECRET,
@@ -145,21 +150,16 @@ export async function getOauthClient(
         `Otherwise navigate to:\n\n${webLogin.authUrl}\n\n`,
     );
     try {
-      // Attempt to open the authentication URL in the default browser.
-      // We do not use the `wait` option here because the main script's execution
-      // is already paused by `loginCompletePromise`, which awaits the server callback.
-      const childProcess = await open(webLogin.authUrl);
-
-      // IMPORTANT: Attach an error handler to the returned child process.
-      // Without this, if `open` fails to spawn a process (e.g., `xdg-open` is not found
-      // in a minimal Docker container), it will emit an unhandled 'error' event,
-      // causing the entire Node.js process to crash.
-      childProcess.on('error', (_) => {
-        console.error(
-          'Failed to open browser automatically. Please try running again with NO_BROWSER=true set.',
-        );
-        process.exit(1);
-      });
+      // COMMENTED OUT: Browser launch disabled
+      // const childProcess = await open(webLogin.authUrl);
+      // childProcess.on('error', (_) => {
+      //   console.error(
+      //     'Failed to open browser automatically. Please try running again with NO_BROWSER=true set.',
+      //   );
+      //   process.exit(1);
+      // });
+      
+      console.log('Browser launch has been disabled. All authentication except Ollama is disabled.');
     } catch (err) {
       console.error(
         'An unexpected error occurred while trying to open the browser:',

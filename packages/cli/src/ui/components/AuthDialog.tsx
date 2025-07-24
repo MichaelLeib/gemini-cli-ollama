@@ -51,51 +51,61 @@ export function AuthDialog({
       );
     }
 
-    if (
-      process.env.GEMINI_API_KEY &&
-      (!defaultAuthType || defaultAuthType === AuthType.USE_GEMINI)
-    ) {
-      return 'Existing API key detected (GEMINI_API_KEY). Select "Gemini API Key" option to use it.';
-    }
+    // COMMENTED OUT: Only Ollama supported
+    // if (
+    //   process.env.GEMINI_API_KEY &&
+    //   (!defaultAuthType || defaultAuthType === AuthType.USE_GEMINI)
+    // ) {
+    //   return 'Existing API key detected (GEMINI_API_KEY). Select "Gemini API Key" option to use it.';
+    // }
     return null;
   });
+  // COMMENTED OUT: Only show Ollama option
   const items = [
     {
-      label: 'Login with Google',
-      value: AuthType.LOGIN_WITH_GOOGLE,
+      label: 'Configure Ollama (Local AI)',
+      value: AuthType.USE_OLLAMA,
     },
-    ...(process.env.CLOUD_SHELL === 'true'
-      ? [
-          {
-            label: 'Use Cloud Shell user credentials',
-            value: AuthType.CLOUD_SHELL,
-          },
-        ]
-      : []),
-    {
-      label: 'Use Gemini API Key',
-      value: AuthType.USE_GEMINI,
-    },
-    { label: 'Vertex AI', value: AuthType.USE_VERTEX_AI },
+    // COMMENTED OUT: Other auth methods disabled
+    // {
+    //   label: 'Login with Google',
+    //   value: AuthType.LOGIN_WITH_GOOGLE,
+    // },
+    // ...(process.env.CLOUD_SHELL === 'true'
+    //   ? [
+    //       {
+    //         label: 'Use Cloud Shell user credentials',
+    //         value: AuthType.CLOUD_SHELL,
+    //       },
+    //     ]
+    //   : []),
+    // {
+    //   label: 'Use Gemini API Key',
+    //   value: AuthType.USE_GEMINI,
+    // },
+    // { label: 'Vertex AI', value: AuthType.USE_VERTEX_AI },
   ];
 
+  // COMMENTED OUT: Only allow Ollama selection
   const initialAuthIndex = items.findIndex((item) => {
-    if (settings.merged.selectedAuthType) {
+    if (settings.merged.selectedAuthType && settings.merged.selectedAuthType === AuthType.USE_OLLAMA) {
       return item.value === settings.merged.selectedAuthType;
     }
 
-    const defaultAuthType = parseDefaultAuthType(
-      process.env.GEMINI_DEFAULT_AUTH_TYPE,
-    );
-    if (defaultAuthType) {
-      return item.value === defaultAuthType;
-    }
+    // COMMENTED OUT: Other auth type detection disabled
+    // const defaultAuthType = parseDefaultAuthType(
+    //   process.env.GEMINI_DEFAULT_AUTH_TYPE,
+    // );
+    // if (defaultAuthType) {
+    //   return item.value === defaultAuthType;
+    // }
 
-    if (process.env.GEMINI_API_KEY) {
-      return item.value === AuthType.USE_GEMINI;
-    }
+    // if (process.env.GEMINI_API_KEY) {
+    //   return item.value === AuthType.USE_GEMINI;
+    // }
 
-    return item.value === AuthType.LOGIN_WITH_GOOGLE;
+    // Always default to Ollama (only supported option)
+    return item.value === AuthType.USE_OLLAMA;
   });
 
   const handleAuthSelect = (authMethod: AuthType) => {
@@ -134,9 +144,9 @@ export function AuthDialog({
       padding={1}
       width="100%"
     >
-      <Text bold>Get started</Text>
+      <Text bold>Configure Ollama</Text>
       <Box marginTop={1}>
-        <Text>How would you like to authenticate for this project?</Text>
+        <Text>This CLI now only supports Ollama (local AI). Select the option below to configure your Ollama connection.</Text>
       </Box>
       <Box marginTop={1}>
         <RadioButtonSelect

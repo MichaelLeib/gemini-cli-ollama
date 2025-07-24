@@ -35,9 +35,9 @@ import {
   sessionId,
   logUserPrompt,
   AuthType,
-  getOauthClient,
+  // getOauthClient, // COMMENTED OUT: OAuth disabled
 } from '@google/gemini-cli-core';
-import { validateAuthMethod } from './config/auth.js';
+// import { validateAuthMethod } from './config/auth.js'; // COMMENTED OUT: Auth validation disabled
 import { setMaxSizedBoxDebugging } from './ui/components/shared/MaxSizedBox.js';
 import { validateNonInteractiveAuth } from './validateNonInterActiveAuth.js';
 
@@ -127,15 +127,21 @@ export async function main() {
     process.exit(0);
   }
 
-  // Set a default auth type if one isn't set.
+  // Set default auth type to Ollama if none is set (only supported auth method)
   if (!settings.merged.selectedAuthType) {
-    if (process.env.CLOUD_SHELL === 'true') {
-      settings.setValue(
-        SettingScope.User,
-        'selectedAuthType',
-        AuthType.CLOUD_SHELL,
-      );
-    }
+    settings.setValue(
+      SettingScope.User,
+      'selectedAuthType',
+      AuthType.USE_OLLAMA,
+    );
+  } else if (settings.merged.selectedAuthType !== AuthType.USE_OLLAMA) {
+    // Force any existing non-Ollama auth to Ollama
+    console.log(`Switching from ${settings.merged.selectedAuthType} to Ollama (only supported auth method)`);
+    settings.setValue(
+      SettingScope.User,
+      'selectedAuthType',
+      AuthType.USE_OLLAMA,
+    );
   }
 
   setMaxSizedBoxDebugging(config.getDebugMode());
@@ -161,15 +167,24 @@ export async function main() {
     const sandboxConfig = config.getSandbox();
     if (sandboxConfig) {
       if (settings.merged.selectedAuthType) {
-        // Validate authentication here because the sandbox will interfere with the Oauth2 web redirect.
-        try {
-          const err = validateAuthMethod(settings.merged.selectedAuthType);
-          if (err) {
-            throw new Error(err);
-          }
-          await config.refreshAuth(settings.merged.selectedAuthType);
-        } catch (err) {
-          console.error('Error authenticating:', err);
+        // COMMENTED OUT: Only Ollama authentication allowed
+        // try {
+        //   const err = validateAuthMethod(settings.merged.selectedAuthType);
+        //   if (err) {
+        //     throw new Error(err);
+        //   }
+        //   // Skip auth initialization for Ollama as it doesn't need OAuth2 web redirect
+        //   if (settings.merged.selectedAuthType !== AuthType.USE_OLLAMA) {
+        //     await config.refreshAuth(settings.merged.selectedAuthType);
+        //   }
+        // } catch (err) {
+        //   console.error('Error authenticating:', err);
+        //   process.exit(1);
+        // }
+        
+        // Only allow Ollama authentication
+        if (settings.merged.selectedAuthType !== AuthType.USE_OLLAMA) {
+          console.error('Only Ollama authentication is supported. Please reconfigure.');
           process.exit(1);
         }
       }
@@ -185,13 +200,14 @@ export async function main() {
     }
   }
 
-  if (
-    settings.merged.selectedAuthType === AuthType.LOGIN_WITH_GOOGLE &&
-    config.isBrowserLaunchSuppressed()
-  ) {
-    // Do oauth before app renders to make copying the link possible.
-    await getOauthClient(settings.merged.selectedAuthType, config);
-  }
+  // COMMENTED OUT: Google OAuth disabled
+  // if (
+  //   settings.merged.selectedAuthType === AuthType.LOGIN_WITH_GOOGLE &&
+  //   config.isBrowserLaunchSuppressed()
+  // ) {
+  //   // Do oauth before app renders to make copying the link possible.
+  //   await getOauthClient(settings.merged.selectedAuthType, config);
+  // }
 
   if (config.getExperimentalAcp()) {
     return runAcpPeer(config, settings);
