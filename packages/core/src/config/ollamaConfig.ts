@@ -42,8 +42,8 @@ export interface OllamaAdvancedOptions {
  * Default configuration for Ollama
  */
 export const DEFAULT_OLLAMA_CONFIG: OllamaConfig = {
-  baseUrl: 'http://localhost:11434',
-  defaultModel: 'llama3.2',
+  baseUrl: 'http://192.168.98.100:11434',
+  defaultModel: 'qwen2.5-coder:32b',
   timeout: 120000, // 2 minutes
   maxRetries: 3,
   connectionTestEnabled: true,
@@ -74,17 +74,17 @@ export const OLLAMA_ENV_VARS = {
  */
 export function createOllamaConfigFromEnv(): Partial<OllamaConfig> {
   const config: Partial<OllamaConfig> = {};
-  
+
   const baseUrl = process.env[OLLAMA_ENV_VARS.BASE_URL];
   if (baseUrl) {
     config.baseUrl = baseUrl;
   }
-  
+
   const model = process.env[OLLAMA_ENV_VARS.MODEL];
   if (model) {
     config.defaultModel = model;
   }
-  
+
   const timeoutStr = process.env[OLLAMA_ENV_VARS.TIMEOUT];
   if (timeoutStr) {
     const timeout = parseInt(timeoutStr, 10);
@@ -92,15 +92,15 @@ export function createOllamaConfigFromEnv(): Partial<OllamaConfig> {
       config.timeout = timeout;
     }
   }
-  
+
   const skipConnectionTest = process.env[OLLAMA_ENV_VARS.SKIP_CONNECTION_TEST];
   if (skipConnectionTest) {
     config.connectionTestEnabled = skipConnectionTest !== 'true';
   }
-  
+
   // Advanced options from environment
   const advancedOptions: Partial<OllamaAdvancedOptions> = {};
-  
+
   const temperatureStr = process.env[OLLAMA_ENV_VARS.TEMPERATURE];
   if (temperatureStr) {
     const temperature = parseFloat(temperatureStr);
@@ -108,7 +108,7 @@ export function createOllamaConfigFromEnv(): Partial<OllamaConfig> {
       advancedOptions.temperature = temperature;
     }
   }
-  
+
   const topPStr = process.env[OLLAMA_ENV_VARS.TOP_P];
   if (topPStr) {
     const topP = parseFloat(topPStr);
@@ -116,7 +116,7 @@ export function createOllamaConfigFromEnv(): Partial<OllamaConfig> {
       advancedOptions.topP = topP;
     }
   }
-  
+
   const maxTokensStr = process.env[OLLAMA_ENV_VARS.MAX_TOKENS];
   if (maxTokensStr) {
     const maxTokens = parseInt(maxTokensStr, 10);
@@ -124,11 +124,11 @@ export function createOllamaConfigFromEnv(): Partial<OllamaConfig> {
       advancedOptions.maxTokens = maxTokens;
     }
   }
-  
+
   if (Object.keys(advancedOptions).length > 0) {
     config.advancedOptions = advancedOptions;
   }
-  
+
   return config;
 }
 
@@ -140,7 +140,7 @@ export function mergeOllamaConfig(
   fromEnv?: Partial<OllamaConfig>,
 ): OllamaConfig {
   const envConfig = fromEnv || createOllamaConfigFromEnv();
-  
+
   return {
     ...DEFAULT_OLLAMA_CONFIG,
     ...envConfig,
@@ -158,45 +158,45 @@ export function mergeOllamaConfig(
  */
 export function validateOllamaConfig(config: OllamaConfig): string[] {
   const errors: string[] = [];
-  
+
   // Validate base URL
   try {
     new URL(config.baseUrl);
   } catch {
     errors.push(`Invalid base URL: ${config.baseUrl}`);
   }
-  
+
   // Validate model name
   if (!config.defaultModel || config.defaultModel.trim().length === 0) {
     errors.push('Default model cannot be empty');
   }
-  
+
   // Validate timeout
   if (config.timeout <= 0) {
     errors.push('Timeout must be greater than 0');
   }
-  
+
   // Validate retries
   if (config.maxRetries < 0) {
     errors.push('Max retries cannot be negative');
   }
-  
+
   // Validate advanced options
   if (config.advancedOptions) {
     const { temperature, topP, maxTokens } = config.advancedOptions;
-    
+
     if (temperature !== undefined && (temperature < 0 || temperature > 1)) {
       errors.push('Temperature must be between 0 and 1');
     }
-    
+
     if (topP !== undefined && (topP < 0 || topP > 1)) {
       errors.push('Top-p must be between 0 and 1');
     }
-    
+
     if (maxTokens !== undefined && maxTokens <= 0) {
       errors.push('Max tokens must be greater than 0');
     }
   }
-  
+
   return errors;
 }

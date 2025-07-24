@@ -10,11 +10,14 @@ import {
   Content,
   Part,
   FinishReason,
+  Tool,
+  FunctionDeclaration,
 } from '@google/genai';
 import { 
   OllamaChatRequest, 
   OllamaChatResponse, 
-  OllamaStreamResponse 
+  OllamaStreamResponse,
+  OllamaTool
 } from './ollamaClient.js';
 import { OllamaConfig } from '../config/ollamaConfig.js';
 
@@ -307,15 +310,41 @@ export class OllamaConverter {
   }
 
   /**
+   * Convert Gemini tools to Ollama format
+   */
+  static convertToolsToOllama(geminiTools: Tool[]): OllamaTool[] {
+    const ollamaTools: OllamaTool[] = [];
+    
+    for (const tool of geminiTools) {
+      if ('functionDeclarations' in tool && tool.functionDeclarations) {
+        for (const func of tool.functionDeclarations) {
+          ollamaTools.push({
+            type: 'function',
+            function: {
+              name: func.name ?? '',
+              description: func.description ?? '',
+              parameters: {
+                type: 'object',
+                properties: func.parameters?.properties || {},
+                required: func.parameters?.required || []
+              }
+            }
+          });
+        }
+      }
+    }
+    
+    return ollamaTools;
+  }
+
+  /**
    * Validate that the request is compatible with Ollama
    */
   static validateRequest(request: GenerateContentParameters): string[] {
     const errors: string[] = [];
     
-    // Check for unsupported features
-    if (request.config?.tools && request.config.tools.length > 0) {
-      errors.push('Tool calling is not supported by Ollama');
-    }
+    // Tool calling is now supported by Ollama
+    // We'll convert Gemini tools to Ollama format
     
     if (request.contents) {
       // Handle ContentListUnion properly
@@ -361,9 +390,8 @@ export class OllamaConverter {
         errors.push('Custom stop sequences are not supported by Ollama');
       }
       
-      if (genConfig.responseMimeType && genConfig.responseMimeType !== 'text/plain') {
-        errors.push('Custom response MIME types are not supported by Ollama');
-      }
+      // responseMimeType is removed during sanitization, so no warning needed
+      // Ollama supports structured outputs through its format parameter
     }
     
     return errors;
@@ -376,9 +404,9 @@ export class OllamaConverter {
   static sanitizeRequest(request: GenerateContentParameters): GenerateContentParameters {
     const sanitized = { ...request };
     
-    // Remove unsupported features
+    // Keep tools for Ollama (they're now supported)
+    // Only remove toolConfig which is not used by Ollama
     if (sanitized.config) {
-      delete sanitized.config.tools;
       delete sanitized.config.toolConfig;
     }
     

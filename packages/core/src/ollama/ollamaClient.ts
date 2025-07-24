@@ -16,6 +16,22 @@ import {
 import { OllamaConfig } from '../config/ollamaConfig.js';
 
 /**
+ * Ollama tool definition (OpenAI-compatible format)
+ */
+export interface OllamaTool {
+  type: 'function';
+  function: {
+    name: string;
+    description: string;
+    parameters: {
+      type: 'object';
+      properties: Record<string, unknown>;
+      required?: string[];
+    };
+  };
+}
+
+/**
  * Ollama API request format for chat completions
  */
 export interface OllamaChatRequest {
@@ -25,11 +41,22 @@ export interface OllamaChatRequest {
     content: string;
   }>;
   stream?: boolean;
+  tools?: OllamaTool[];
   options?: {
     temperature?: number;
     top_p?: number;
     max_tokens?: number;
     [key: string]: unknown;
+  };
+}
+
+/**
+ * Ollama tool call in response
+ */
+export interface OllamaToolCall {
+  function: {
+    name: string;
+    arguments: Record<string, unknown>;
   };
 }
 
@@ -42,8 +69,10 @@ export interface OllamaChatResponse {
   message: {
     role: 'assistant';
     content: string;
+    tool_calls?: OllamaToolCall[];
   };
   done: boolean;
+  done_reason?: string;
   total_duration?: number;
   load_duration?: number;
   prompt_eval_count?: number;
@@ -336,10 +365,35 @@ export class OllamaClient {
       }
     }
 
+    // Convert Gemini tools to Ollama format
+    let tools: OllamaTool[] | undefined;
+    if (request.config?.tools && request.config.tools.length > 0) {
+      tools = [];
+      for (const tool of request.config.tools) {
+        if ('functionDeclarations' in tool && tool.functionDeclarations) {
+          for (const func of tool.functionDeclarations) {
+            tools.push({
+              type: 'function',
+              function: {
+                name: func.name ?? '',
+                description: func.description ?? '',
+                parameters: {
+                  type: 'object',
+                  properties: func.parameters?.properties || {},
+                  required: func.parameters?.required || []
+                }
+              }
+            });
+          }
+        }
+      }
+    }
+
     return {
       model: this.config.defaultModel,
       messages,
       stream,
+      tools,
       options: Object.keys(options).length > 0 ? options : undefined,
     };
   }
@@ -349,10 +403,31 @@ export class OllamaClient {
    */
   private convertFromOllamaResponse(response: OllamaChatResponse): GenerateContentResponse {
     const out = new GenerateContentResponse();
+    
+    // Build parts array from content and tool calls  
+    const parts: any[] = [];
+    
+    // Add text content if present
+    if (response.message.content) {
+      parts.push({ text: response.message.content });
+    }
+    
+    // Convert tool calls to Gemini function calls
+    if (response.message.tool_calls && response.message.tool_calls.length > 0) {
+      for (const toolCall of response.message.tool_calls) {
+        parts.push({
+          functionCall: {
+            name: toolCall.function.name,
+            args: toolCall.function.arguments
+          }
+        });
+      }
+    }
+    
     out.candidates = [
       {
         content: {
-          parts: [{ text: response.message.content }],
+          parts: parts.length > 0 ? parts : [{ text: '' }],
           role: 'model',
         },
         finishReason: response.done ? FinishReason.STOP : undefined,
