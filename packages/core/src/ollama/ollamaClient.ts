@@ -133,8 +133,8 @@ export class OllamaClient {
   /**
    * Generate content using Ollama chat API
    */
-  async generateContent(request: GenerateContentParameters): Promise<GenerateContentResponse> {
-    const ollamaRequest = this.convertToOllamaRequest(request, false);
+  async generateContent(request: GenerateContentParameters, tools?: OllamaTool[]): Promise<GenerateContentResponse> {
+    const ollamaRequest = this.convertToOllamaRequest(request, false, tools);
     
     const response = await this.makeRequest<OllamaChatResponse>(
       '/api/chat',
@@ -148,9 +148,10 @@ export class OllamaClient {
    * Generate content with streaming using Ollama chat API
    */
   async *generateContentStream(
-    request: GenerateContentParameters
+    request: GenerateContentParameters,
+    tools?: OllamaTool[]
   ): AsyncGenerator<GenerateContentResponse> {
-    const ollamaRequest = this.convertToOllamaRequest(request, true);
+    const ollamaRequest = this.convertToOllamaRequest(request, true, tools);
     
     const response = await this.makeStreamingRequest(
       '/api/chat',
@@ -267,7 +268,8 @@ export class OllamaClient {
    */
   private convertToOllamaRequest(
     request: GenerateContentParameters, 
-    stream: boolean
+    stream: boolean,
+    tools?: OllamaTool[]
   ): OllamaChatRequest {
     const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [];
     
@@ -365,29 +367,8 @@ export class OllamaClient {
       }
     }
 
-    // Convert Gemini tools to Ollama format
-    let tools: OllamaTool[] | undefined;
-    if (request.config?.tools && request.config.tools.length > 0) {
-      tools = [];
-      for (const tool of request.config.tools) {
-        if ('functionDeclarations' in tool && tool.functionDeclarations) {
-          for (const func of tool.functionDeclarations) {
-            tools.push({
-              type: 'function',
-              function: {
-                name: func.name ?? '',
-                description: func.description ?? '',
-                parameters: {
-                  type: 'object',
-                  properties: func.parameters?.properties || {},
-                  required: func.parameters?.required || []
-                }
-              }
-            });
-          }
-        }
-      }
-    }
+    // Use tools passed from translation service (if any)
+    // The translation service handles model-specific tool formatting
 
     return {
       model: this.config.defaultModel,

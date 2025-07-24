@@ -143,7 +143,7 @@ export async function createContentGenerator(
 
   if (config.authType === AuthType.USE_OLLAMA) {
     const ollamaConfig = gcConfig.getOllamaConfig();
-    return createOllamaContentGenerator(ollamaConfig);
+    return await createOllamaContentGenerator(ollamaConfig, gcConfig);
   }
 
   // COMMENTED OUT: Other content generators disabled

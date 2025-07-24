@@ -11,39 +11,97 @@ import {
   CountTokensResponse,
   EmbedContentParameters,
   EmbedContentResponse,
+  Tool,
 } from '@google/genai';
 import { ContentGenerator } from '../core/contentGenerator.js';
 import { OllamaClient } from './ollamaClient.js';
 import { OllamaConverter } from './ollamaConverter.js';
 import { OllamaConfig } from '../config/ollamaConfig.js';
+import { OllamaToolTranslationService } from './translation/OllamaToolTranslationService.js';
 
 /**
  * Content generator implementation for Ollama
  */
 export class OllamaContentGenerator implements ContentGenerator {
   readonly userTier: undefined = undefined; // Ollama doesn't have user tiers
+  private readonly translationService: OllamaToolTranslationService;
+  private registeredTools: Tool[] = [];
 
   constructor(
     private readonly client: OllamaClient,
     private readonly config: OllamaConfig
-  ) {}
+  ) {
+    this.translationService = new OllamaToolTranslationService();
+  }
+  
+  /**
+   * Set the available tools for this content generator
+   */
+  setAvailableTools(tools: Tool[]): void {
+    this.registeredTools = tools;
+  }
 
   /**
    * Generate content using Ollama
    */
   async generateContent(request: GenerateContentParameters): Promise<GenerateContentResponse> {
-    // Validate request compatibility
-    const validationErrors = OllamaConverter.validateRequest(request);
+    const modelName = this.config.defaultModel;
+    
+    // Use translation service for model-aware tool handling
+    const requestTranslation = this.translationService.translateRequestToModel(
+      request, 
+      modelName, 
+      this.registeredTools
+    );
+    
+    // Log any translation warnings
+    if (requestTranslation.warnings.length > 0) {
+      console.warn('Tool translation warnings:');
+      requestTranslation.warnings.forEach(warning => console.warn(`  - ${warning}`));
+    }
+    
+    // Create enhanced request with translated tools
+    const enhancedRequest = { ...request };
+    if (requestTranslation.enhancedSystemPrompt) {
+      enhancedRequest.config = {
+        ...enhancedRequest.config,
+        systemInstruction: requestTranslation.enhancedSystemPrompt
+      };
+    }
+    
+    // Fallback to old validation for non-tool features
+    const validationErrors = OllamaConverter.validateRequest(enhancedRequest);
     if (validationErrors.length > 0) {
       console.warn('Ollama compatibility issues detected:');
       validationErrors.forEach(error => console.warn(`  - ${error}`));
     }
 
     // Sanitize request for Ollama compatibility
-    const sanitizedRequest = OllamaConverter.sanitizeRequest(request);
+    const sanitizedRequest = OllamaConverter.sanitizeRequest(enhancedRequest);
 
     try {
-      return await this.client.generateContent(sanitizedRequest);
+      const ollamaResponse = await this.client.generateContent(
+        sanitizedRequest, 
+        requestTranslation.request.tools
+      );
+      
+      // Use translation service to validate and convert response
+      const responseTranslation = this.translationService.translateResponseFromModel(
+        ollamaResponse as any, // Cast needed due to response format differences
+        modelName,
+        this.registeredTools
+      );
+      
+      // Log translation stats
+      if (responseTranslation.stats.hallucinatedToolCalls > 0) {
+        console.warn(`Filtered ${responseTranslation.stats.hallucinatedToolCalls} hallucinated tool calls`);
+      }
+      
+      if (responseTranslation.modelIssues.length > 0) {
+        console.warn('Model issues detected:', responseTranslation.modelIssues);
+      }
+      
+      return responseTranslation.response;
     } catch (error) {
       throw this.enhanceError(error, 'generateContent');
     }
@@ -55,20 +113,80 @@ export class OllamaContentGenerator implements ContentGenerator {
   async generateContentStream(
     request: GenerateContentParameters
   ): Promise<AsyncGenerator<GenerateContentResponse>> {
-    // Validate request compatibility
-    const validationErrors = OllamaConverter.validateRequest(request);
+    const modelName = this.config.defaultModel;
+    
+    // Use translation service for model-aware tool handling
+    const requestTranslation = this.translationService.translateRequestToModel(
+      request, 
+      modelName, 
+      this.registeredTools
+    );
+    
+    // Log any translation warnings
+    if (requestTranslation.warnings.length > 0) {
+      console.warn('Tool translation warnings:');
+      requestTranslation.warnings.forEach(warning => console.warn(`  - ${warning}`));
+    }
+    
+    // Create enhanced request with translated tools
+    const enhancedRequest = { ...request };
+    if (requestTranslation.enhancedSystemPrompt) {
+      enhancedRequest.config = {
+        ...enhancedRequest.config,
+        systemInstruction: requestTranslation.enhancedSystemPrompt
+      };
+    }
+    
+    // Fallback to old validation for non-tool features
+    const validationErrors = OllamaConverter.validateRequest(enhancedRequest);
     if (validationErrors.length > 0) {
       console.warn('Ollama compatibility issues detected:');
       validationErrors.forEach(error => console.warn(`  - ${error}`));
     }
 
     // Sanitize request for Ollama compatibility
-    const sanitizedRequest = OllamaConverter.sanitizeRequest(request);
+    const sanitizedRequest = OllamaConverter.sanitizeRequest(enhancedRequest);
 
     try {
-      return this.client.generateContentStream(sanitizedRequest);
+      const ollamaStreamGenerator = await this.client.generateContentStream(
+        sanitizedRequest,
+        requestTranslation.request.tools
+      );
+      
+      // Return a generator that translates each streaming response
+      return this.translateStreamingResponses(ollamaStreamGenerator, modelName);
     } catch (error) {
       throw this.enhanceError(error, 'generateContentStream');
+    }
+  }
+  
+  /**
+   * Translate streaming responses using the translation service
+   */
+  private async* translateStreamingResponses(
+    ollamaGenerator: AsyncGenerator<GenerateContentResponse>, 
+    modelName: string
+  ): AsyncGenerator<GenerateContentResponse> {
+    for await (const ollamaResponse of ollamaGenerator) {
+      try {
+        // Use translation service to validate and convert response
+        const responseTranslation = this.translationService.translateResponseFromModel(
+          ollamaResponse as any,
+          modelName,
+          this.registeredTools
+        );
+        
+        // Log issues for debugging but don't interrupt streaming
+        if (responseTranslation.stats.hallucinatedToolCalls > 0) {
+          console.warn(`Streaming: Filtered ${responseTranslation.stats.hallucinatedToolCalls} hallucinated tool calls`);
+        }
+        
+        yield responseTranslation.response;
+      } catch (error) {
+        console.warn('Error translating streaming response:', error);
+        // Fallback to original response if translation fails
+        yield ollamaResponse;
+      }
     }
   }
 
@@ -171,9 +289,22 @@ export class OllamaContentGenerator implements ContentGenerator {
 /**
  * Factory function to create OllamaContentGenerator
  */
-export function createOllamaContentGenerator(config: OllamaConfig): OllamaContentGenerator {
+export async function createOllamaContentGenerator(config: OllamaConfig, gcConfig?: any): Promise<OllamaContentGenerator> {
   const client = new OllamaClient(config);
-  return new OllamaContentGenerator(client, config);
+  const generator = new OllamaContentGenerator(client, config);
+  
+  // Set available tools if gcConfig is provided
+  if (gcConfig && gcConfig.getToolRegistry) {
+    try {
+      const toolRegistry = await gcConfig.getToolRegistry();
+      const tools = toolRegistry.getTools();
+      generator.setAvailableTools(tools);
+    } catch (error) {
+      console.warn('Failed to load tools for Ollama content generator:', error);
+    }
+  }
+  
+  return generator;
 }
 
 /**
