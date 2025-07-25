@@ -26,7 +26,6 @@ enum ConfigStep {
   BASE_URL = 'baseUrl',
   MODEL_SELECTION = 'modelSelection',
   TIMEOUT_CONFIG = 'timeoutConfig',
-  ADVANCED_OPTIONS = 'advancedOptions',
   TESTING = 'testing',
   SUMMARY = 'summary',
 }
@@ -74,7 +73,6 @@ export function OllamaConfigDialog({
   const [baseUrlInput, setBaseUrlInput] = useState(configState.baseUrl);
   const [selectedModelIndex, setSelectedModelIndex] = useState(0);
   const [timeoutInput, setTimeoutInput] = useState((configState.timeout / 1000).toString());
-  const [advancedOptionsIndex, setAdvancedOptionsIndex] = useState(0);
 
   useInput((input, key) => {
     if (key.escape) {
@@ -96,9 +94,6 @@ export function OllamaConfigDialog({
         break;
       case ConfigStep.TIMEOUT_CONFIG:
         handleTimeoutInput(input, key);
-        break;
-      case ConfigStep.ADVANCED_OPTIONS:
-        handleAdvancedOptionsInput(input, key);
         break;
       case ConfigStep.TESTING:
         handleTestingInput(input, key);  
@@ -128,10 +123,20 @@ export function OllamaConfigDialog({
 
   const handleTimeoutInput = (input: string, key: {return?: boolean; backspace?: boolean}) => {
     if (key.return) {
-      const timeoutSeconds = parseInt(timeoutInput, 10);
+      let timeoutSeconds: number;
+      
+      if (timeoutInput.trim() === '') {
+        // Use recommended timeout if input is empty
+        const recommendedTimeout = getModelRecommendedTimeout(configState.selectedModel);
+        timeoutSeconds = Math.floor(recommendedTimeout / 1000);
+      } else {
+        timeoutSeconds = parseInt(timeoutInput, 10);
+      }
+      
       if (!isNaN(timeoutSeconds) && timeoutSeconds > 0) {
+        console.log(`Setting timeout to ${timeoutSeconds} seconds (${timeoutSeconds * 1000}ms)`);
         setConfigState(prev => ({ ...prev, timeout: timeoutSeconds * 1000 }));
-        proceedToAdvancedOptions();
+        proceedToTesting();
       } else {
         setError('Please enter a valid timeout in seconds (greater than 0)');
       }
@@ -141,18 +146,6 @@ export function OllamaConfigDialog({
     } else if (input && /^\d$/.test(input)) {
       setTimeoutInput(prev => prev + input);
       setError(null);
-    }
-  };
-
-  const handleAdvancedOptionsInput = (input: string, key: {return?: boolean}) => {
-    if (key.return) {
-      if (advancedOptionsIndex === 0) {
-        // Skip advanced options
-        proceedToTesting();
-      } else {
-        // Configure advanced options (simplified for now)
-        proceedToTesting();
-      }
     }
   };
 
@@ -241,10 +234,6 @@ export function OllamaConfigDialog({
     setCurrentStep(ConfigStep.TIMEOUT_CONFIG);
   };
 
-  const proceedToAdvancedOptions = () => {
-    setCurrentStep(ConfigStep.ADVANCED_OPTIONS);
-  };
-
   const proceedToTesting = () => {
     setCurrentStep(ConfigStep.TESTING);
   };
@@ -308,8 +297,6 @@ export function OllamaConfigDialog({
         return renderModelSelectionStep();
       case ConfigStep.TIMEOUT_CONFIG:
         return renderTimeoutConfigStep();
-      case ConfigStep.ADVANCED_OPTIONS:
-        return renderAdvancedOptionsStep();
       case ConfigStep.TESTING:
         return renderTestingStep();
       case ConfigStep.SUMMARY:
@@ -391,7 +378,7 @@ export function OllamaConfigDialog({
         </Box>
         <Box marginTop={1}>
           <Text color={Colors.AccentBlue}>
-            {timeoutInput || recommendedSeconds}
+            {timeoutInput}
           </Text>
           <Text>█</Text>
         </Box>
@@ -402,7 +389,7 @@ export function OllamaConfigDialog({
         </Box>
         <Box marginTop={1}>
           <Text color={Colors.Gray}>
-            Type timeout in seconds, or press Enter to use current value
+            Type timeout in seconds (current: {timeoutInput || recommendedSeconds}s), or press Enter to confirm
           </Text>
         </Box>
         {error && (
@@ -410,38 +397,6 @@ export function OllamaConfigDialog({
             <Text color={Colors.AccentRed}>{error}</Text>
           </Box>
         )}
-      </Box>
-    );
-  };
-
-  const renderAdvancedOptionsStep = () => {
-    const optionItems = [
-      { label: 'Use default settings (recommended)', value: 'default' },
-      { label: 'Configure advanced options', value: 'advanced' },
-    ];
-
-    return (
-      <Box flexDirection="column">
-        <Text bold>Advanced Configuration</Text>
-        <Box marginTop={1}>
-          <Text>Would you like to configure advanced options?</Text>
-        </Box>
-        <Box marginTop={1}>
-          <RadioButtonSelect
-            items={optionItems}
-            initialIndex={advancedOptionsIndex}
-            onSelect={(value) => {
-              setAdvancedOptionsIndex(value === 'default' ? 0 : 1);
-              proceedToTesting();
-            }}
-            isFocused={true}
-          />
-        </Box>
-        <Box marginTop={1}>
-          <Text color={Colors.Gray}>
-            Default: Temperature 0.7, Top-p 0.9, Max tokens 4096
-          </Text>
-        </Box>
       </Box>
     );
   };

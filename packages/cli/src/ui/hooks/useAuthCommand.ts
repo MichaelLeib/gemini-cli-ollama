@@ -122,6 +122,7 @@ export const useAuthCommand = (
   const handleOllamaConfigComplete = useCallback(
     (ollamaConfig: OllamaConfig) => {
       // Save Ollama configuration and set auth type
+      console.log('Saving Ollama config with timeout:', ollamaConfig.timeout + 'ms');
       config.setOllamaConfig(ollamaConfig);
       settings.setValue(SettingScope.User, 'selectedAuthType', AuthType.USE_OLLAMA);
       settings.setValue(SettingScope.User, 'ollama', ollamaConfig);
