@@ -25,6 +25,7 @@ export * from './core/nonInteractiveToolExecutor.js';
 export * from './ollama/ollamaClient.js';
 export * from './ollama/ollamaConverter.js';
 export * from './ollama/ollamaContentGenerator.js';
+export * from './ollama/translation/ModelCapabilities.js';
 
 export * from './code_assist/codeAssist.js';
 export * from './code_assist/oauth2.js';

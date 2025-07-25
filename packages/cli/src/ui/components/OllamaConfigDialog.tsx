@@ -14,6 +14,7 @@ import {
   validateOllamaSetup,
   createOllamaContentGenerator 
 } from '@google/gemini-cli-core';
+import { getModelRecommendedTimeout } from '@google/gemini-cli-core';
 
 interface OllamaConfigDialogProps {
   onComplete: (config: OllamaConfig) => void;
@@ -206,7 +207,13 @@ export function OllamaConfigDialog({
 
   const proceedToAdvancedOptions = () => {
     const selectedModel = configState.availableModels[selectedModelIndex];
-    setConfigState(prev => ({ ...prev, selectedModel }));
+    const recommendedTimeout = getModelRecommendedTimeout(selectedModel);
+    
+    setConfigState(prev => ({ 
+      ...prev, 
+      selectedModel,
+      timeout: recommendedTimeout 
+    }));
     setCurrentStep(ConfigStep.ADVANCED_OPTIONS);
   };
 
@@ -306,10 +313,13 @@ export function OllamaConfigDialog({
   );
 
   const renderModelSelectionStep = () => {
-    const modelItems = configState.availableModels.map(model => ({
-      label: model,
-      value: model,
-    }));
+    const modelItems = configState.availableModels.map(model => {
+      const timeout = getModelRecommendedTimeout(model);
+      return {
+        label: `${model} (${(timeout / 1000).toFixed(0)}s timeout)`,
+        value: model,
+      };
+    });
 
     return (
       <Box flexDirection="column">
@@ -331,6 +341,9 @@ export function OllamaConfigDialog({
         </Box>
         <Box marginTop={1}>
           <Text color={Colors.Gray}>Use arrow keys to select, Enter to confirm</Text>
+        </Box>
+        <Box marginTop={1}>
+          <Text color={Colors.Gray}>Timeout values are automatically optimized per model</Text>
         </Box>
       </Box>
     );
@@ -386,6 +399,7 @@ export function OllamaConfigDialog({
       <Box marginTop={1} flexDirection="column">
         <Text>Server: <Text color={Colors.AccentBlue}>{configState.baseUrl}</Text></Text>
         <Text>Model: <Text color={Colors.AccentBlue}>{configState.selectedModel}</Text></Text>
+        <Text>Timeout: <Text color={Colors.AccentBlue}>{(configState.timeout / 1000).toFixed(0)}s</Text></Text>
         <Text>Temperature: <Text color={Colors.AccentBlue}>{configState.temperature}</Text></Text>
         <Text>Max Tokens: <Text color={Colors.AccentBlue}>{configState.maxTokens}</Text></Text>
       </Box>
