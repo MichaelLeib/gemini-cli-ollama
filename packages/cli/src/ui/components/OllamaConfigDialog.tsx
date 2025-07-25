@@ -25,6 +25,7 @@ interface OllamaConfigDialogProps {
 enum ConfigStep {
   BASE_URL = 'baseUrl',
   MODEL_SELECTION = 'modelSelection',
+  TIMEOUT_CONFIG = 'timeoutConfig',
   ADVANCED_OPTIONS = 'advancedOptions',
   TESTING = 'testing',
   SUMMARY = 'summary',
@@ -72,6 +73,7 @@ export function OllamaConfigDialog({
   // Input handlers for different configuration steps
   const [baseUrlInput, setBaseUrlInput] = useState(configState.baseUrl);
   const [selectedModelIndex, setSelectedModelIndex] = useState(0);
+  const [timeoutInput, setTimeoutInput] = useState((configState.timeout / 1000).toString());
   const [advancedOptionsIndex, setAdvancedOptionsIndex] = useState(0);
 
   useInput((input, key) => {
@@ -91,6 +93,9 @@ export function OllamaConfigDialog({
         break;
       case ConfigStep.MODEL_SELECTION:
         // Handled by RadioButtonSelect
+        break;
+      case ConfigStep.TIMEOUT_CONFIG:
+        handleTimeoutInput(input, key);
         break;
       case ConfigStep.ADVANCED_OPTIONS:
         handleAdvancedOptionsInput(input, key);
@@ -117,6 +122,24 @@ export function OllamaConfigDialog({
       setError(null);
     } else if (input) {
       setBaseUrlInput(prev => prev + input);
+      setError(null);
+    }
+  };
+
+  const handleTimeoutInput = (input: string, key: {return?: boolean; backspace?: boolean}) => {
+    if (key.return) {
+      const timeoutSeconds = parseInt(timeoutInput, 10);
+      if (!isNaN(timeoutSeconds) && timeoutSeconds > 0) {
+        setConfigState(prev => ({ ...prev, timeout: timeoutSeconds * 1000 }));
+        proceedToAdvancedOptions();
+      } else {
+        setError('Please enter a valid timeout in seconds (greater than 0)');
+      }
+    } else if (key.backspace) {
+      setTimeoutInput(prev => prev.slice(0, -1));
+      setError(null);
+    } else if (input && /^\d$/.test(input)) {
+      setTimeoutInput(prev => prev + input);
       setError(null);
     }
   };
@@ -205,7 +228,7 @@ export function OllamaConfigDialog({
     }
   };
 
-  const proceedToAdvancedOptions = () => {
+  const proceedToTimeoutConfig = () => {
     const selectedModel = configState.availableModels[selectedModelIndex];
     const recommendedTimeout = getModelRecommendedTimeout(selectedModel);
     
@@ -214,6 +237,11 @@ export function OllamaConfigDialog({
       selectedModel,
       timeout: recommendedTimeout 
     }));
+    setTimeoutInput((recommendedTimeout / 1000).toString());
+    setCurrentStep(ConfigStep.TIMEOUT_CONFIG);
+  };
+
+  const proceedToAdvancedOptions = () => {
     setCurrentStep(ConfigStep.ADVANCED_OPTIONS);
   };
 
@@ -278,6 +306,8 @@ export function OllamaConfigDialog({
         return renderBaseUrlStep();
       case ConfigStep.MODEL_SELECTION:
         return renderModelSelectionStep();
+      case ConfigStep.TIMEOUT_CONFIG:
+        return renderTimeoutConfigStep();
       case ConfigStep.ADVANCED_OPTIONS:
         return renderAdvancedOptionsStep();
       case ConfigStep.TESTING:
@@ -334,7 +364,7 @@ export function OllamaConfigDialog({
             onSelect={(model) => {
               const index = configState.availableModels.indexOf(model);
               setSelectedModelIndex(index);
-              proceedToAdvancedOptions();
+              proceedToTimeoutConfig();
             }}
             isFocused={true}
           />
@@ -345,6 +375,41 @@ export function OllamaConfigDialog({
         <Box marginTop={1}>
           <Text color={Colors.Gray}>Timeout values are automatically optimized per model</Text>
         </Box>
+      </Box>
+    );
+  };
+
+  const renderTimeoutConfigStep = () => {
+    const recommendedTimeout = getModelRecommendedTimeout(configState.selectedModel);
+    const recommendedSeconds = Math.floor(recommendedTimeout / 1000);
+
+    return (
+      <Box flexDirection="column">
+        <Text bold>Configure Timeout</Text>
+        <Box marginTop={1}>
+          <Text>Set timeout for model "{configState.selectedModel}" (in seconds):</Text>
+        </Box>
+        <Box marginTop={1}>
+          <Text color={Colors.AccentBlue}>
+            {timeoutInput || recommendedSeconds}
+          </Text>
+          <Text>█</Text>
+        </Box>
+        <Box marginTop={1}>
+          <Text color={Colors.Gray}>
+            Recommended: {recommendedSeconds}s for this model
+          </Text>
+        </Box>
+        <Box marginTop={1}>
+          <Text color={Colors.Gray}>
+            Type timeout in seconds, or press Enter to use current value
+          </Text>
+        </Box>
+        {error && (
+          <Box marginTop={1}>
+            <Text color={Colors.AccentRed}>{error}</Text>
+          </Box>
+        )}
       </Box>
     );
   };
