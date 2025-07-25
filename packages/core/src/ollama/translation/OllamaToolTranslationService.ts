@@ -6,7 +6,7 @@
 
 import { Tool, GenerateContentParameters, GenerateContentResponse } from '@google/genai';
 import { OllamaChatRequest, OllamaChatResponse, OllamaTool } from '../ollamaClient.js';
-import { ModelToolCapabilities, getModelCapabilities, modelSupportsTools } from './ModelCapabilities.js';
+import { ModelToolCapabilities, getModelCapabilities, modelSupportsTools, getModelRecommendedTimeout } from './ModelCapabilities.js';
 import { OllamaToolTranslator } from './OllamaToolTranslator.js';
 import { OllamaResponseTranslator, ResponseTranslationStats } from './OllamaResponseTranslator.js';
 import { ModelPromptEngineer } from './ModelPromptEngineer.js';
@@ -316,6 +316,13 @@ export class OllamaToolTranslationService {
   }
   
   /**
+   * Get recommended timeout for a model
+   */
+  getRecommendedTimeout(modelName: string): number {
+    return getModelRecommendedTimeout(modelName);
+  }
+
+  /**
    * Get recommended configuration for optimal tool calling with a model
    */
   getRecommendedConfiguration(modelName: string): Record<string, unknown> {
@@ -340,6 +347,11 @@ export class OllamaToolTranslationService {
     // Temperature adjustments for better tool calling
     if (capabilities.toolFormat === 'hermes') {
       config.temperature = 0.1; // Lower temperature for more consistent tool calling
+    }
+    
+    // Timeout recommendations
+    if (capabilities.config?.recommendedTimeout) {
+      config.timeout = capabilities.config.recommendedTimeout;
     }
     
     return config;

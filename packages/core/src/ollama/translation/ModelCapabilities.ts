@@ -45,6 +45,9 @@ export interface ModelToolCapabilities {
     
     /** Special tokens or formatting requirements */
     specialTokens?: string[];
+    
+    /** Recommended timeout in milliseconds for this model */
+    recommendedTimeout?: number;
   };
 }
 
@@ -65,7 +68,8 @@ export const MODEL_CAPABILITIES: Record<string, ModelToolCapabilities> = {
     config: {
       recommendedContextSize: 32768,
       requiresExplicitToolChoice: false,
-      specialTokens: ['<tool_call>', '</tool_call>']
+      specialTokens: ['<tool_call>', '</tool_call>'],
+      recommendedTimeout: 60000 // 1 minute for large 32B model
     }
   },
   
@@ -80,7 +84,8 @@ export const MODEL_CAPABILITIES: Record<string, ModelToolCapabilities> = {
     multiTurnSupport: 'good',
     config: {
       recommendedContextSize: 32768,
-      requiresExplicitToolChoice: false
+      requiresExplicitToolChoice: false,
+      recommendedTimeout: 45000 // 45 seconds for 14B model
     }
   },
   
@@ -92,7 +97,10 @@ export const MODEL_CAPABILITIES: Record<string, ModelToolCapabilities> = {
     supportsStreaming: true,
     customParser: 'qwen3coder',
     promptStyle: 'hermes',
-    multiTurnSupport: 'good'
+    multiTurnSupport: 'good',
+    config: {
+      recommendedTimeout: 30000 // 30 seconds for 7B model
+    }
   },
   
   // Mistral models
@@ -105,7 +113,8 @@ export const MODEL_CAPABILITIES: Record<string, ModelToolCapabilities> = {
     promptStyle: 'standard',
     multiTurnSupport: 'excellent',
     config: {
-      requiresExplicitToolChoice: true
+      requiresExplicitToolChoice: true,
+      recommendedTimeout: 45000 // 45 seconds for Mistral
     }
   },
   
@@ -116,7 +125,10 @@ export const MODEL_CAPABILITIES: Record<string, ModelToolCapabilities> = {
     supportsParallel: true,
     supportsStreaming: false,
     promptStyle: 'standard',
-    multiTurnSupport: 'excellent'
+    multiTurnSupport: 'excellent',
+    config: {
+      recommendedTimeout: 35000 // 35 seconds for Mistral Nemo
+    }
   },
   
   'codestral': {
@@ -126,7 +138,10 @@ export const MODEL_CAPABILITIES: Record<string, ModelToolCapabilities> = {
     supportsParallel: true,
     supportsStreaming: false,
     promptStyle: 'standard',
-    multiTurnSupport: 'good'
+    multiTurnSupport: 'good',
+    config: {
+      recommendedTimeout: 30000 // 30 seconds for Codestral
+    }
   },
   
   // DeepSeek models
@@ -139,7 +154,8 @@ export const MODEL_CAPABILITIES: Record<string, ModelToolCapabilities> = {
     promptStyle: 'standard',
     multiTurnSupport: 'poor',
     config: {
-      requiresExplicitToolChoice: true
+      requiresExplicitToolChoice: true,
+      recommendedTimeout: 50000 // 50 seconds for DeepSeek (slower model)
     }
   },
   
@@ -151,7 +167,10 @@ export const MODEL_CAPABILITIES: Record<string, ModelToolCapabilities> = {
     supportsStreaming: false,
     promptStyle: 'standard',
     multiTurnSupport: 'poor',
-    version: 'R1-0528'
+    version: 'R1-0528',
+    config: {
+      recommendedTimeout: 55000 // 55 seconds for reasoning model (slower)
+    }
   },
   
   // Kimi K2 models  
@@ -165,7 +184,8 @@ export const MODEL_CAPABILITIES: Record<string, ModelToolCapabilities> = {
     multiTurnSupport: 'excellent',
     config: {
       recommendedContextSize: 128000,
-      requiresExplicitToolChoice: false
+      requiresExplicitToolChoice: false,
+      recommendedTimeout: 40000 // 40 seconds for Kimi K2
     }
   },
   
@@ -177,7 +197,10 @@ export const MODEL_CAPABILITIES: Record<string, ModelToolCapabilities> = {
     supportsParallel: true,
     supportsStreaming: true,
     promptStyle: 'standard',
-    multiTurnSupport: 'good'
+    multiTurnSupport: 'good',
+    config: {
+      recommendedTimeout: 35000 // 35 seconds for Llama 3.1
+    }
   },
   
   'llama3.2:latest': {
@@ -187,7 +210,10 @@ export const MODEL_CAPABILITIES: Record<string, ModelToolCapabilities> = {
     supportsParallel: false,
     supportsStreaming: true,
     promptStyle: 'standard',
-    multiTurnSupport: 'good'
+    multiTurnSupport: 'good',
+    config: {
+      recommendedTimeout: 30000 // 30 seconds for Llama 3.2
+    }
   },
   
   // Firefunction models
@@ -198,7 +224,10 @@ export const MODEL_CAPABILITIES: Record<string, ModelToolCapabilities> = {
     supportsParallel: true,
     supportsStreaming: false,
     promptStyle: 'standard',
-    multiTurnSupport: 'good'
+    multiTurnSupport: 'good',
+    config: {
+      recommendedTimeout: 35000 // 35 seconds for Firefunction
+    }
   },
   
   // Command-R models
@@ -209,7 +238,10 @@ export const MODEL_CAPABILITIES: Record<string, ModelToolCapabilities> = {
     supportsParallel: true,
     supportsStreaming: false,
     promptStyle: 'standard',
-    multiTurnSupport: 'good'
+    multiTurnSupport: 'good',
+    config: {
+      recommendedTimeout: 40000 // 40 seconds for Command-R Plus
+    }
   }
 };
 
@@ -275,6 +307,14 @@ export function modelSupportsTools(modelName: string): boolean {
 }
 
 /**
+ * Get recommended timeout for a model in milliseconds
+ */
+export function getModelRecommendedTimeout(modelName: string): number {
+  const capabilities = getModelCapabilities(modelName);
+  return capabilities.config?.recommendedTimeout || 30000; // Default 30 seconds
+}
+
+/**
  * Get recommended configuration for a model
  */
 export function getModelRecommendedConfig(modelName: string): Record<string, unknown> {
@@ -287,6 +327,10 @@ export function getModelRecommendedConfig(modelName: string): Record<string, unk
   
   if (capabilities.config?.requiresExplicitToolChoice) {
     config.tool_choice = 'auto';
+  }
+  
+  if (capabilities.config?.recommendedTimeout) {
+    config.timeout = capabilities.config.recommendedTimeout;
   }
   
   return config;

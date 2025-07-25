@@ -164,7 +164,7 @@ export function OllamaConfigDialog({
         connectionTestEnabled: true,
       });
       
-      const generator = createOllamaContentGenerator(testConfig);
+      const generator = await createOllamaContentGenerator(testConfig);
       const models = await generator.getAvailableModels();
       
       let availableModels = models;
